@@ -1,0 +1,34 @@
+# Secrets / sessions
+.env
+kite_session.json
+kite_session.txt
+
+# Virtual environments
+.venv/
+venv/
+
+# Python cache / build
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Large generated data (keep local)
+instruments.csv
+nifty_fut_5m.csv
+*.log
+
+# Backtest outputs / reports (local)
+reports/
+*_results.csv
+report_*.csv
+top_variant_*.csv
+option_paper_backtest*.csv
+fut_backtest*.csv
