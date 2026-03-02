@@ -8,6 +8,7 @@ Signals are generated from index futures 5-minute candles and mapped to index we
 - `core/`: indicators and signal engine.
 - `live/`: intraday paper/live runner.
 - `scripts/`: data fetch + helper scripts.
+- `docs/`: internal design/change notes.
 
 ## Strategy snapshot
 - Underlying: NIFTY FUT / BANKNIFTY FUT (5m).
@@ -80,6 +81,11 @@ python live/live_runner_zerodha_paper.py --profile banknifty
 - Rotate API key/secret immediately if exposed.
 - Keep generated CSV/log/report outputs out of git.
 - Use GitHub Actions CI (`.github/workflows/ci.yml`) to catch broken pushes.
+
+## Collaboration
+- Contribution process: `CONTRIBUTING.md`
+- Change history: `CHANGELOG.md`
+- Internal patch notes: `docs/PATCH_V2_FILTERS.md`
 
 ## Risk note
 This code is for research and educational use. Options trading can cause significant loss. Validate with paper-forward testing before any live deployment.

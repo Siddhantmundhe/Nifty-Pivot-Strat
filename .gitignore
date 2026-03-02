@@ -24,6 +24,9 @@ dist/
 .DS_Store
 Thumbs.db
 
+# Local packaging/scratch
+nifty_pivot_repo_pack/
+
 # Large generated data (keep local)
 instruments.csv
 nifty_fut_5m.csv
