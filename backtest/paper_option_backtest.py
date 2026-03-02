@@ -1,10 +1,17 @@
+import sys
 from pathlib import Path
+
+# Add project root to sys.path so 'core' module can be found
+proj_root = Path(__file__).resolve().parent.parent
+if str(proj_root) not in sys.path:
+    sys.path.insert(0, str(proj_root))
+
 from dataclasses import asdict
 import pandas as pd
-from signal_engine import generate_signals, prepare_df
+from core.signal_engine import generate_signals, prepare_df
 
-CSV = Path(__file__).resolve().parent / "nifty_fut_5m.csv"
-OUT = Path(__file__).resolve().parent / "fut_backtest_scaleout_results.csv"
+CSV = proj_root / "nifty_fut_5m.csv"
+OUT = proj_root / "fut_backtest_scaleout_results.csv"
 
 TARGET1_POINTS = 40.0  # lot1 fixed target
 
@@ -31,8 +38,8 @@ def simulate_scaleout_trade(df: pd.DataFrame, signal, target1_points: float = TA
     entry_time = pd.Timestamp(signal.entry_time)
     trade_date = entry_time.date()
 
-    entry_price = float(signal.fut_entry)
-    initial_sl = float(signal.fut_sl)
+    entry_price = float(signal.entry)
+    initial_sl = float(signal.sl)
 
     # Lot1 target
     if side == "LONG":
@@ -63,7 +70,7 @@ def simulate_scaleout_trade(df: pd.DataFrame, signal, target1_points: float = TA
 
     # scan only same-day candles starting from entry candle
     scan = df.iloc[entry_idx:].copy()
-    scan = scan[scan["date"].dt.date == trade_date].reset_index(drop=False)  # keep original index in "index"
+    scan = scan[scan.index.date == trade_date].reset_index(drop=False)  # keep original index in "index"
 
     if scan.empty:
         return {
@@ -257,7 +264,7 @@ def main():
         row.update(sim)
 
         # risk stats
-        risk_points = abs(s.fut_entry - s.fut_sl)
+        risk_points = abs(s.entry - s.sl)
         row["risk_points"] = risk_points
         row["tp1_points"] = TARGET1_POINTS
         row["tp1_rr"] = (TARGET1_POINTS / risk_points) if risk_points > 0 else None
@@ -291,7 +298,7 @@ def main():
     print(f"Effective avg points per lot: {avg_eff:.2f}")
 
     cols = [
-        "entry_time", "side", "level_name", "fut_entry", "fut_sl",
+        "entry_time", "side", "level_name", "entry", "sl",
         "lot1_exit_reason", "lot1_pnl_points",
         "lot2_exit_reason", "lot2_pnl_points",
         "total_points_2lots", "effective_points_per_lot"

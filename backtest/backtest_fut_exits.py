@@ -1,10 +1,17 @@
+import sys
 from pathlib import Path
+
+# Add project root to sys.path so 'core' module can be found
+proj_root = Path(__file__).resolve().parent.parent
+if str(proj_root) not in sys.path:
+    sys.path.insert(0, str(proj_root))
+
 from dataclasses import asdict
 import pandas as pd
-from signal_engine import generate_signals, prepare_df
+from core.signal_engine import generate_signals, prepare_df
 
-CSV = Path(__file__).resolve().parent / "nifty_fut_5m.csv"
-OUT = Path(__file__).resolve().parent / "fut_backtest_results.csv"
+CSV = proj_root / "nifty_fut_5m.csv"
+OUT = proj_root / "fut_backtest_results.csv"
 
 def simulate_exit(df: pd.DataFrame, signal):
     """
@@ -17,14 +24,14 @@ def simulate_exit(df: pd.DataFrame, signal):
     entry_idx = signal.entry_idx
     entry_time = signal.entry_time
     side = signal.side
-    tp = signal.fut_tp
-    sl = signal.fut_sl
+    tp = signal.tp
+    sl = signal.sl
 
     trade_date = pd.Timestamp(entry_time).date()
 
     # Start checking from entry candle itself (entry is at open of this candle)
     scan = df.iloc[entry_idx:].copy()
-    scan = scan[scan["date"].dt.date == trade_date]
+    scan = scan[scan.index.date == trade_date]
 
     if scan.empty:
         return {
@@ -35,11 +42,10 @@ def simulate_exit(df: pd.DataFrame, signal):
             "win": None,
         }
 
-    for _, row in scan.iterrows():
+    for ts, row in scan.iterrows():
         high_ = float(row["high"])
         low_ = float(row["low"])
         close_ = float(row["close"])
-        ts = row["date"]
 
         if side == "LONG":
             hit_tp = high_ >= tp
@@ -51,7 +57,7 @@ def simulate_exit(df: pd.DataFrame, signal):
                     "exit_time": ts,
                     "exit_price": sl,
                     "exit_reason": "SL_SAME_CANDLE",
-                    "pnl_points": sl - signal.fut_entry,
+                    "pnl_points": sl - signal.entry,
                     "win": 0,
                 }
             elif hit_sl:
@@ -59,7 +65,7 @@ def simulate_exit(df: pd.DataFrame, signal):
                     "exit_time": ts,
                     "exit_price": sl,
                     "exit_reason": "SL",
-                    "pnl_points": sl - signal.fut_entry,
+                    "pnl_points": sl - signal.entry,
                     "win": 0,
                 }
             elif hit_tp:
@@ -67,7 +73,7 @@ def simulate_exit(df: pd.DataFrame, signal):
                     "exit_time": ts,
                     "exit_price": tp,
                     "exit_reason": "TP",
-                    "pnl_points": tp - signal.fut_entry,
+                    "pnl_points": tp - signal.entry,
                     "win": 1,
                 }
 
@@ -81,7 +87,7 @@ def simulate_exit(df: pd.DataFrame, signal):
                     "exit_time": ts,
                     "exit_price": sl,
                     "exit_reason": "SL_SAME_CANDLE",
-                    "pnl_points": signal.fut_entry - sl,
+                    "pnl_points": signal.entry - sl,
                     "win": 0,
                 }
             elif hit_sl:
@@ -89,7 +95,7 @@ def simulate_exit(df: pd.DataFrame, signal):
                     "exit_time": ts,
                     "exit_price": sl,
                     "exit_reason": "SL",
-                    "pnl_points": signal.fut_entry - sl,
+                    "pnl_points": signal.entry - sl,
                     "win": 0,
                 }
             elif hit_tp:
@@ -97,19 +103,19 @@ def simulate_exit(df: pd.DataFrame, signal):
                     "exit_time": ts,
                     "exit_price": tp,
                     "exit_reason": "TP",
-                    "pnl_points": signal.fut_entry - tp,
+                    "pnl_points": signal.entry - tp,
                     "win": 1,
                 }
 
     # Day-end fallback (last available candle of same day)
     last_row = scan.iloc[-1]
     eod_close = float(last_row["close"])
-    ts = last_row["date"]
+    ts = scan.index[-1]
 
     if side == "LONG":
-        pnl = eod_close - signal.fut_entry
+        pnl = eod_close - signal.entry
     else:
-        pnl = signal.fut_entry - eod_close
+        pnl = signal.entry - eod_close
 
     return {
         "exit_time": ts,
@@ -141,9 +147,9 @@ def main():
         row.update(exit_info)
 
         # RR metrics
-        risk_points = abs(s.fut_entry - s.fut_sl)
+        risk_points = abs(s.entry - s.sl)
         row["risk_points"] = risk_points
-        row["reward_points"] = abs(s.fut_tp - s.fut_entry)
+        row["reward_points"] = abs(s.tp - s.entry)
         row["rr_planned"] = (row["reward_points"] / risk_points) if risk_points > 0 else None
 
         rows.append(row)
@@ -165,7 +171,7 @@ def main():
     print(f"Net FUT points: {net_points:.2f} | Avg/trade: {avg_points:.2f}")
     print("\nLast trades:")
     cols = [
-        "entry_time", "side", "level_name", "fut_entry", "fut_sl", "fut_tp",
+        "entry_time", "side", "level_name", "entry", "sl", "tp",
         "exit_time", "exit_price", "exit_reason", "pnl_points"
     ]
     print(res[cols].tail(10).to_string(index=False))

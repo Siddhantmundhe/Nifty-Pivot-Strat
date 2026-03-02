@@ -1,9 +1,32 @@
 from pathlib import Path
 import pandas as pd
 import numpy as np
+import sys
+import os
+import argparse
 
-CSV = Path(__file__).resolve().parent / "option_paper_backtest_scaleout.csv"
+proj_root = Path(__file__).resolve().parent.parent
+if str(proj_root) not in sys.path:
+    sys.path.insert(0, str(proj_root))
+
+CSV = proj_root / "option_paper_backtest_scaleout.csv"
 PNL_COL = "opt_net_total_pnl_rupees_2lots"
+
+
+def _parse_profile_arg(default: str = "NIFTY") -> str:
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--profile", choices=["nifty", "banknifty"])
+    args, _ = parser.parse_known_args()
+    val = (args.profile or os.getenv("STRATEGY_PROFILE", default)).strip().upper()
+    return "BANKNIFTY" if "BANK" in val else "NIFTY"
+
+
+def apply_strategy_profile(profile: str) -> None:
+    global CSV
+    if profile == "BANKNIFTY":
+        CSV = proj_root / "option_paper_backtest_scaleout_banknifty.csv"
+    else:
+        CSV = proj_root / "option_paper_backtest_scaleout.csv"
 
 def parse_dt_col(df: pd.DataFrame, col: str):
     if col in df.columns:
@@ -81,14 +104,14 @@ def summarize(df: pd.DataFrame, name: str) -> dict:
         "trades": trades,
         "wins": wins,
         "losses": losses,
-        "win_rate_%": round((wins / trades) * 100, 2) if trades else 0.0,
-        "net_pnl": round(float(pnl.sum()), 2),
-        "avg_pnl": round(float(pnl.mean()), 2),
-        "median_pnl": round(float(pnl.median()), 2),
-        "avg_win": round(float(pnl[wins_mask].mean()), 2) if wins > 0 else np.nan,
-        "avg_loss": round(float(pnl[losses_mask].mean()), 2) if losses > 0 else np.nan,
-        "max_win": round(float(pnl.max()), 2),
-        "max_loss": round(float(pnl.min()), 2),
+        "win_rate_%": round(float((wins / trades) * 100), 2) if trades else 0.0,
+        "net_pnl": round(float(pnl.sum()), 2), # type: ignore
+        "avg_pnl": round(float(pnl.mean()), 2), # type: ignore
+        "median_pnl": round(float(pnl.median()), 2), # type: ignore
+        "avg_win": round(float(pnl[wins_mask].mean()), 2) if wins > 0 else np.nan, # type: ignore
+        "avg_loss": round(float(pnl[losses_mask].mean()), 2) if losses > 0 else np.nan, # type: ignore
+        "max_win": round(float(pnl.max()), 2), # type: ignore
+        "max_loss": round(float(pnl.min()), 2), # type: ignore
         "profit_factor": round(float(pf), 2) if pd.notna(pf) else np.nan,
     }
 
@@ -132,6 +155,9 @@ def print_variant_detail(df: pd.DataFrame, name: str, max_rows: int = 10):
     print(df[cols].tail(max_rows).to_string(index=False))
 
 def main():
+    profile = _parse_profile_arg()
+    apply_strategy_profile(profile)
+    print(f"Profile: {profile} | Input CSV: {CSV}")
     if not CSV.exists():
         raise RuntimeError(f"File not found: {CSV}")
 
@@ -214,7 +240,7 @@ def main():
     print(
         f"Top variant by net PnL: {best['variant']} | "
         f"Trades={int(best['trades'])}, WinRate={best['win_rate_%']}%, "
-        f"Net=₹{best['net_pnl']}, PF={best['profit_factor']}"
+        f"Net=Rs {best['net_pnl']}, PF={best['profit_factor']}"
     )
 
     # Baseline comparison
@@ -222,7 +248,7 @@ def main():
     if not baseline.empty:
         b = baseline.iloc[0]
         delta = best["net_pnl"] - b["net_pnl"]
-        print(f"Vs baseline net PnL delta: ₹{delta:.2f}")
+        print(f"Vs baseline net PnL delta: Rs {delta:.2f}")
 
 if __name__ == "__main__":
     main()
