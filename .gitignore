@@ -2,6 +2,10 @@
 .env
 kite_session.json
 kite_session.txt
+broker/access_token.txt
+broker/kite_session.json
+broker/*.token
+broker/*.session
 
 # Virtual environments
 .venv/
@@ -23,7 +27,11 @@ Thumbs.db
 # Large generated data (keep local)
 instruments.csv
 nifty_fut_5m.csv
+banknifty_fut_5m.csv
 *.log
+*.tmp
+*.bak
+live_paper_errors_log*.csv
 
 # Backtest outputs / reports (local)
 reports/
@@ -32,3 +40,6 @@ report_*.csv
 top_variant_*.csv
 option_paper_backtest*.csv
 fut_backtest*.csv
+
+# Local runtime control files
+STOP_TRADING.txt

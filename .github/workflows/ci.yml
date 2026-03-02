@@ -1,0 +1,35 @@
+name: ci
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  lint-and-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Compile check
+        run: |
+          python -m py_compile broker/*.py
+          python -m py_compile core/*.py
+          python -m py_compile backtest/*.py
+          python -m py_compile live/*.py
+          python -m py_compile scripts/*.py
+
+      - name: Strategy logic smoke test
+        run: python core/test_signals.py
